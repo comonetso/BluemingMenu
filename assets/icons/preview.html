@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Blueming Menu — 아이콘 후보 비교</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 40px 64px;
+    font: 14px/1.6 "Malgun Gothic", "Segoe UI", sans-serif;
+    background: #0d1117; color: #e6edf3;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #8b949e; margin: 0 0 28px; font-size: 13px; }
+  .sub strong { color: #e6edf3; }
+
+  section { margin-bottom: 44px; }
+  h2 { font-size: 14px; margin: 0 0 14px; color: #58a6ff; font-weight: 600; }
+
+  table { border-collapse: collapse; }
+  th, td { padding: 12px 20px; text-align: center; }
+  th { font-size: 11px; color: #8b949e; font-weight: 500; }
+  th.name, td.name { text-align: left; }
+  td.name { font-size: 13px; white-space: nowrap; }
+  td.name small { display: block; color: #8b949e; font-size: 11px; font-weight: 400; }
+  tr.focus td { background: #161d26; }
+  tr.focus td.name { border-left: 3px solid #58a6ff; padding-left: 17px; }
+  .tag {
+    display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px;
+    background: #1f6feb33; color: #58a6ff; margin-left: 6px; vertical-align: 2px;
+  }
+
+  .light { background: #f6f8fa; border-radius: 10px; padding: 20px 8px; }
+  .light, .light th, .light td { color: #24292f; }
+  .light th { color: #57606a; }
+  .light td.name small { color: #57606a; }
+  .light tr.focus td { background: #eaeef2; }
+
+  /* 실제 작업표시줄 재현 — 높이 40px, 아이콘 32px (이 PC 실측) */
+  .taskbar {
+    height: 40px; background: #1c1c1c; border-radius: 6px;
+    display: flex; align-items: center; gap: 10px; padding: 0 12px; width: 360px;
+  }
+  .taskbar img { width: 32px; height: 32px; }
+  .taskbar .dummy { width: 32px; height: 32px; border-radius: 6px; background: #3a3a3a; }
+  .bars { display: flex; flex-direction: column; gap: 9px; }
+  .bars .cap { font-size: 11px; color: #8b949e; }
+</style>
+</head>
+<body>
+
+<h1>Blueming Menu — 아이콘 후보</h1>
+<p class="sub">
+  256px 에서 예쁜지는 중요하지 않습니다.
+  <strong>32px 와 16px 에서 무엇인지 알아볼 수 있는가</strong>가 판정 기준입니다.
+  이 앱은 작업표시줄(32px)과 컨텍스트 메뉴(16px)로 보일 일이 압도적으로 많습니다.
+</p>
+
+<section>
+  <h2>다크 배경 (현재 사용 환경)</h2>
+  <table>
+    <tr>
+      <th class="name">안</th>
+      <th>256px<br><span style="font-weight:400">원본</span></th>
+      <th>64px<br><span style="font-weight:400">바탕화면</span></th>
+      <th>32px<br><span style="font-weight:400">작업표시줄</span></th>
+      <th>16px<br><span style="font-weight:400">컨텍스트 메뉴</span></th>
+    </tr>
+    <tr class="focus">
+      <td class="name">B — Blueming<span class="tag">후보</span><small>피어나는 형태</small></td>
+      <td><img src="b-blueming.svg" width="256"></td>
+      <td><img src="b-blueming.svg" width="64"></td>
+      <td><img src="b-blueming.svg" width="32"></td>
+      <td><img src="b-blueming.svg" width="16"></td>
+    </tr>
+    <tr class="focus">
+      <td class="name">C — 떠오르는 패널<span class="tag">후보</span><small>원본</small></td>
+      <td><img src="c-panel.svg" width="256"></td>
+      <td><img src="c-panel.svg" width="64"></td>
+      <td><img src="c-panel.svg" width="32"></td>
+      <td><img src="c-panel.svg" width="16"></td>
+    </tr>
+    <tr class="focus">
+      <td class="name">C2 — 패널 개선<span class="tag">신규</span><small>타일·호 확대</small></td>
+      <td><img src="c2-panel.svg" width="256"></td>
+      <td><img src="c2-panel.svg" width="64"></td>
+      <td><img src="c2-panel.svg" width="32"></td>
+      <td><img src="c2-panel.svg" width="16"></td>
+    </tr>
+    <tr class="focus">
+      <td class="name">D — 피어나며 떠오름<span class="tag">신규</span><small>B + C 하이브리드</small></td>
+      <td><img src="d-rising.svg" width="256"></td>
+      <td><img src="d-rising.svg" width="64"></td>
+      <td><img src="d-rising.svg" width="32"></td>
+      <td><img src="d-rising.svg" width="16"></td>
+    </tr>
+    <tr>
+      <td class="name">A — 그리드<small>참고용</small></td>
+      <td><img src="a-grid.svg" width="256"></td>
+      <td><img src="a-grid.svg" width="64"></td>
+      <td><img src="a-grid.svg" width="32"></td>
+      <td><img src="a-grid.svg" width="16"></td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>작업표시줄 실사 재현 — 높이 40px · 아이콘 32px (이 PC 실측)</h2>
+  <div class="bars">
+    <span class="cap">B — Blueming</span>
+    <div class="taskbar">
+      <div class="dummy"></div><div class="dummy"></div>
+      <img src="b-blueming.svg">
+      <div class="dummy"></div><div class="dummy"></div>
+    </div>
+
+    <span class="cap">C — 떠오르는 패널</span>
+    <div class="taskbar">
+      <div class="dummy"></div><div class="dummy"></div>
+      <img src="c-panel.svg">
+      <div class="dummy"></div><div class="dummy"></div>
+    </div>
+
+    <span class="cap">C2 — 패널 개선</span>
+    <div class="taskbar">
+      <div class="dummy"></div><div class="dummy"></div>
+      <img src="c2-panel.svg">
+      <div class="dummy"></div><div class="dummy"></div>
+    </div>
+
+    <span class="cap">D — 피어나며 떠오름</span>
+    <div class="taskbar">
+      <div class="dummy"></div><div class="dummy"></div>
+      <img src="d-rising.svg">
+      <div class="dummy"></div><div class="dummy"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>라이트 배경 (테마 변경 대비)</h2>
+  <div class="light">
+    <table>
+      <tr><th class="name">안</th><th>64px</th><th>32px</th><th>16px</th></tr>
+      <tr class="focus">
+        <td class="name">B — Blueming</td>
+        <td><img src="b-blueming.svg" width="64"></td>
+        <td><img src="b-blueming.svg" width="32"></td>
+        <td><img src="b-blueming.svg" width="16"></td>
+      </tr>
+      <tr class="focus">
+        <td class="name">C — 떠오르는 패널</td>
+        <td><img src="c-panel.svg" width="64"></td>
+        <td><img src="c-panel.svg" width="32"></td>
+        <td><img src="c-panel.svg" width="16"></td>
+      </tr>
+      <tr class="focus">
+        <td class="name">C2 — 패널 개선</td>
+        <td><img src="c2-panel.svg" width="64"></td>
+        <td><img src="c2-panel.svg" width="32"></td>
+        <td><img src="c2-panel.svg" width="16"></td>
+      </tr>
+      <tr class="focus">
+        <td class="name">D — 피어나며 떠오름</td>
+        <td><img src="d-rising.svg" width="64"></td>
+        <td><img src="d-rising.svg" width="32"></td>
+        <td><img src="d-rising.svg" width="16"></td>
+      </tr>
+      <tr>
+        <td class="name">A — 그리드</td>
+        <td><img src="a-grid.svg" width="64"></td>
+        <td><img src="a-grid.svg" width="32"></td>
+        <td><img src="a-grid.svg" width="16"></td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Blueming Menu — 안 D: 피어나며 떠오름 (B + C 하이브리드)</title>
+  <defs>
+    <radialGradient id="dGlow" gradientUnits="userSpaceOnUse" cx="128" cy="112" r="112">
+      <stop offset="0"    stop-color="#8AD8FF"/>
+      <stop offset="0.45" stop-color="#38BDF8"/>
+      <stop offset="1"    stop-color="#1A56DB"/>
+    </radialGradient>
+
+    <!-- B 와 동일한 꽃잎. 안쪽 모서리만 r=8, 나머지 r=32. -->
+    <path id="dPetal"
+          d="M 138 64
+             A 32 32 0 0 1 170 32
+             L 192 32
+             A 32 32 0 0 1 224 64
+             L 224 86
+             A 32 32 0 0 1 192 118
+             L 146 118
+             A 8 8 0 0 1 138 110
+             Z"/>
+  </defs>
+
+  <!--
+    B 의 피어나는 형태를 그대로 쓰되 전체를 위로 16px 올리고 아래에 상승 호를 넣었다.
+    "피어난다(Blueming)" 와 "아래에서 올라온다(시작 메뉴)" 를 한 실루엣에 담는다.
+    C 와 달리 내부 디테일이 없어 16px 에서도 형태가 뭉개지지 않는다.
+  -->
+  <g fill="url(#dGlow)" transform="translate(0 -16) scale(0.88) translate(17.5 17.5)">
+    <use href="#dPetal"/>
+    <use href="#dPetal" transform="rotate(90 128 128)"/>
+    <use href="#dPetal" transform="rotate(180 128 128)"/>
+    <use href="#dPetal" transform="rotate(270 128 128)"/>
+  </g>
+
+  <!-- 축소 후 꽃잎 하단이 y≈196 까지 내려오므로 호는 그보다 아래에 둔다 (겹치면 지저분해진다) -->
+  <path d="M 70 226 Q 128 202 186 226"
+        fill="none" stroke="#7DD3FC" stroke-width="20" stroke-linecap="round"/>
+</svg>

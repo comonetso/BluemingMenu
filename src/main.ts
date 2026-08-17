@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { initI18n, resolveLocale, t } from './i18n';
@@ -8,9 +8,12 @@ if (started) {
   app.quit();
 }
 
+// Tray 객체가 GC 되면 트레이 아이콘이 사라진다. 모듈 스코프에 붙들어 둔다.
+let tray: Tray | null = null;
+let mainWindow: BrowserWindow | null = null;
+
 const createWindow = () => {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -18,7 +21,6 @@ const createWindow = () => {
     },
   });
 
-  // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
@@ -27,13 +29,46 @@ const createWindow = () => {
     );
   }
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 };
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+const showWindow = () => {
+  if (!mainWindow) {
+    createWindow();
+    return;
+  }
+  mainWindow.show();
+  mainWindow.focus();
+};
+
+const createTray = () => {
+  // .ico 를 쓴다 — 16~256px 을 모두 담고 있어 Windows 가 DPI 에 맞는 해상도를 고른다.
+  // 이 PC 는 DPI 스케일이 걸려 있어 단일 PNG 를 주면 뭉갠다.
+  const iconPath = path.join(app.getAppPath(), 'assets', 'icons', 'icon.ico');
+  const icon = nativeImage.createFromPath(iconPath);
+
+  if (icon.isEmpty()) {
+    console.error(`[tray] 아이콘을 읽지 못했다: ${iconPath}`);
+  }
+
+  tray = new Tray(icon);
+  tray.setToolTip(t('app.name'));
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: t('tray.open'), click: showWindow },
+      { type: 'separator' },
+      { label: t('tray.quit'), click: () => app.quit() },
+    ]),
+  );
+
+  // 트레이 아이콘 클릭으로도 연다 (Windows 관행)
+  tray.on('click', showWindow);
+
+  console.log(`[tray] 준비 완료 — ${iconPath}`);
+};
+
 app.on('ready', async () => {
   // app.getLocale() 은 ready 이후에야 정확한 값을 준다.
   const osLocale = app.getLocale();
@@ -41,25 +76,14 @@ app.on('ready', async () => {
   await initI18n(locale);
   console.log(`[i18n] OS=${osLocale} → ${locale} | ${t('contextMenu.add')}`);
 
+  // 트레이를 먼저 띄운다. 창이 없어도 앱이 살아 있다는 것을 보장하는 유일한 접점이다.
+  createTray();
   createWindow();
 });
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// 트레이 상주 앱이므로 창이 닫혀도 종료하지 않는다.
+// (1단계 요구사항 — 포커스를 잃으면 패널이 닫히지만 앱 자체는 계속 떠 있어야 한다)
+// 종료 경로는 트레이 메뉴뿐이다.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // 의도적으로 비워 둔다. 여기서 app.quit() 을 부르면 트레이 상주가 깨진다.
 });
-
-app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.

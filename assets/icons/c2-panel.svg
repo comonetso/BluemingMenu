@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Blueming Menu — 안 C2: 떠오르는 패널 (축소 대응 개선)</title>
+  <defs>
+    <linearGradient id="c2Panel" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+
+  <!--
+    C 대비 변경점 — 16px 에서 "그냥 파란 사각형"이 되던 문제를 고쳤다.
+    1) 패널을 키우고 (168x132 → 184x148)
+    2) 내부 타일을 키워 (44 → 52) 흰 면적 비율을 올렸다.
+       축소 시 살아남는 것은 개별 도형이 아니라 명암 대비의 면적이다.
+  -->
+  <rect x="36" y="28" width="184" height="148" rx="26" fill="url(#c2Panel)"/>
+
+  <g fill="#FFFFFF">
+    <rect x="68"  y="50"  width="52" height="52" rx="14"/>
+    <rect x="136" y="50"  width="52" height="52" rx="14"/>
+    <rect x="68"  y="118" width="52" height="52" rx="14"/>
+    <rect x="136" y="118" width="52" height="52" rx="14"/>
+  </g>
+
+  <!-- 아래에서 밀어 올리는 호. 패널에 더 붙이고 굵게 해 실루엣에 남게 했다. -->
+  <path d="M 72 206 Q 128 182 184 206"
+        fill="none" stroke="#7DD3FC" stroke-width="20" stroke-linecap="round"/>
+</svg>

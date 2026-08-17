@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Blueming Menu — 안 C: 떠오르는 팝업 패널</title>
+  <defs>
+    <linearGradient id="cPanel" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 시작 버튼 위로 올라오는 패널 -->
+  <rect x="44" y="36" width="168" height="132" rx="24" fill="url(#cPanel)"/>
+
+  <!-- 패널 안의 앱 타일 2x2. 16px 에서는 사라지지만 실루엣은 남는다. -->
+  <g fill="#FFFFFF" opacity="0.92">
+    <rect x="76"  y="52"  width="44" height="44" rx="12"/>
+    <rect x="132" y="52"  width="44" height="44" rx="12"/>
+    <rect x="76"  y="108" width="44" height="44" rx="12"/>
+    <rect x="132" y="108" width="44" height="44" rx="12"/>
+  </g>
+
+  <!-- 아래에서 밀어 올리는 호 -->
+  <path d="M 72 202 Q 128 178 184 202"
+        fill="none" stroke="#7DD3FC" stroke-width="18" stroke-linecap="round"/>
+</svg>

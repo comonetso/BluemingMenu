@@ -4,5 +4,9 @@
   },
   "contextMenu": {
     "add": "Add to Blueming Menu"
+  },
+  "tray": {
+    "open": "Open",
+    "quit": "Quit"
   }
 }

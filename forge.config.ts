@@ -13,10 +13,13 @@ const config: ForgeConfig = {
     // productName 이 "Blueming Menu" 라 그대로 두면 exe 에 공백이 들어간다.
     // DIRECTION.md 가 지정한 실행 파일명은 BluemingMenu.exe 이므로 명시한다.
     executableName: 'BluemingMenu',
+    // 확장자를 붙이지 않는다 — packager 가 플랫폼별로 .ico/.icns 를 알아서 붙인다.
+    // 원본은 assets/icons/d-rising.svg 이고 `npm run icon` 으로 생성한다.
+    icon: 'assets/icons/icon',
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({}),
+    new MakerSquirrel({ setupIcon: 'assets/icons/icon.ico' }),
     new MakerZIP({}, ['darwin']),
     new MakerRpm({}),
     new MakerDeb({}),

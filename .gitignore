@@ -6,6 +6,10 @@ out/
 .vite/
 dist/
 
+# 아이콘 중간 산출물 (npm run icon 으로 재생성된다)
+# icon.ico / icon.png 은 빌드에 필요하므로 커밋한다
+assets/icons/build/
+
 # 로그
 npm-debug.log*
 yarn-debug.log*

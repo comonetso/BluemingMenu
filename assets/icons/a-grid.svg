@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Blueming Menu — 안 A: 미니멀 그리드</title>
+  <defs>
+    <linearGradient id="aBase" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#1A56DB"/>
+    </linearGradient>
+    <linearGradient id="aHi" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7DD3FC"/>
+      <stop offset="1" stop-color="#22B8F0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 2x2 그리드. 우하단 타일만 밝게 두어 "고정된 앱"을 암시한다. -->
+  <rect x="32"  y="32"  width="84" height="84" rx="22" fill="url(#aBase)"/>
+  <rect x="140" y="32"  width="84" height="84" rx="22" fill="url(#aBase)"/>
+  <rect x="32"  y="140" width="84" height="84" rx="22" fill="url(#aBase)"/>
+  <rect x="140" y="140" width="84" height="84" rx="22" fill="url(#aHi)"/>
+</svg>
