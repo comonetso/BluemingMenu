@@ -1,0 +1,39 @@
+# 의존성
+node_modules/
+
+# 빌드 산출물 (Electron Forge)
+out/
+.vite/
+dist/
+
+# 로그
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# 캐시 / 환경
+*.tsbuildinfo
+.eslintcache
+.env
+.env.*
+
+# 런타임 사용자 데이터 (앱이 만드는 설정/임포트 결과)
+# 저장 위치가 포터블로 확정되면 이 항목을 조정한다
+userdata/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 에디터 — IDE 자동생성분이 커밋에 섞이는 걸 막는다
+# settings.json 은 개인 IDE 설정이라 공유하지 않는다.
+# launch.json(디버그 구성)만 나중에 팀 공유용으로 열어둔다.
+.vscode/*
+!.vscode/launch.json
+.vscode/bookmarks.json
+.idea/
+
+# Claude Code 로컬 전용 설정 (머신마다 다름)
+.claude/settings.local.json
