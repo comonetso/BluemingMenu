@@ -1,0 +1,8 @@
+{
+  "app": {
+    "name": "Blueming Menu"
+  },
+  "contextMenu": {
+    "add": "Add to Blueming Menu"
+  }
+}

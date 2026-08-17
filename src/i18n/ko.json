@@ -1,0 +1,8 @@
+{
+  "app": {
+    "name": "Blueming Menu"
+  },
+  "contextMenu": {
+    "add": "Blueming Menu 에 등록"
+  }
+}
