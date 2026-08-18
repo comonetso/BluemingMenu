@@ -23,8 +23,20 @@ yarn-error.log*
 .env.*
 
 # 런타임 사용자 데이터 (앱이 만드는 설정/임포트 결과)
-# 저장 위치가 포터블로 확정되면 이 항목을 조정한다
 userdata/
+
+# ⚠️ 앱 설정 파일 — **절대 커밋하지 않는다** (Codex 리뷰 2026-08-18 지적)
+#   1. 사용자명·로컬 프로그램 절대 경로가 그대로 들어 있다
+#   2. `imported: true` 가 박혀 있어, 새 checkout 이 이걸 읽으면 **자기 시작 메뉴를 스캔하지 않는다**
+#   개발 모드의 configDir() 이 프로젝트 루트를 쓰기 때문에 여기 생긴다
+blueming-menu.config.json
+blueming-menu.config.backup.json
+
+# ⚠️ Rust 빌드 산출물 — 약 257MB. 머신·툴체인 종속이라 커밋 대상이 아니다
+#   필요한 바이너리(.dll / .exe)는 빌드 단계에서 만든다
+native/**/target/
+# 셸 확장 패키지 조립 결과 (build-and-register.ps1 이 매번 새로 만든다)
+native/shell-ext/dist/
 
 # OS
 Thumbs.db

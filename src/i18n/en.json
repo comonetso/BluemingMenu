@@ -5,8 +5,40 @@
   "contextMenu": {
     "add": "Add to Blueming Menu"
   },
+  "floating": {
+    "hide": "Hide"
+  },
+  "folder": {
+    "defaultName": "New folder",
+    "dissolve": "Ungroup folder"
+  },
+  "grid": {
+    "empty": "No items yet"
+  },
+  "hotkey": {
+    "hint": "Press the keys you want",
+    "none": "Not set",
+    "modifierOnly": "Only Win · Ctrl · Alt · Shift combinations are supported",
+    "clear": "Clear",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "item": {
+    "runAsAdmin": "Run as administrator",
+    "openLocation": "Open file location",
+    "remove": "Remove from menu"
+  },
   "tray": {
     "open": "Open",
-    "quit": "Quit"
+    "quit": "Quit",
+    "floatingShow": "Show floating icon",
+    "floatingHide": "Hide floating icon",
+    "language": "Language",
+    "langKo": "한국어",
+    "langEn": "English",
+    "layout": "Grid layout",
+    "layoutCols": "Columns",
+    "layoutRows": "Rows",
+    "hotkey": "Shortcut"
   }
 }

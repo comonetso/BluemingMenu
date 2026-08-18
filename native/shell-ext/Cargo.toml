@@ -1,0 +1,47 @@
+[package]
+name = "blueming-shell-ext"
+version = "0.1.0"
+edition = "2021"
+description = "Blueming Menu 탐색기 컨텍스트 메뉴 핸들러 (IExplorerCommand)"
+publish = false
+
+[lib]
+# 탐색기가 COM 서버로 로드하는 DLL 이다. cdylib 이어야 한다.
+name = "blueming_shell_ext"
+crate-type = ["cdylib"]
+
+[dependencies]
+# 버전을 고정한다. `windows` 크레이트는 마이너 버전마다 API 시그니처가 바뀌어서
+# 범위 지정(^)으로 두면 어느 날 갑자기 빌드가 깨진다.
+windows-core = "=0.58.0"
+
+[dependencies.windows]
+version = "=0.58.0"
+features = [
+    # ⚠️ COM 인터페이스를 **구현**하려면 이게 반드시 필요하다.
+    #    없으면 `IExplorerCommand_Impl` / `IClassFactory_Impl` trait 자체가 생성되지 않는다.
+    "implement",
+
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Registry",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_Storage_FileSystem",
+    # ReadFile / WriteFile 이 이 feature 뒤에 있다 (overlapped I/O 와 같은 모듈이라).
+    "Win32_System_IO",
+    # SetNamedPipeHandleState — 파이프를 논블로킹으로 바꿔 읽기 타임아웃을 만든다.
+    "Win32_System_Pipes",
+    "Win32_Security",
+]
+
+[profile.release]
+# 탐색기 프로세스에 로드되는 DLL 이다. 작고 빠를수록 좋다.
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

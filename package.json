@@ -3,15 +3,56 @@
   "productName": "Blueming Menu",
   "version": "0.1.0",
   "description": "Windows 11 시작 메뉴 대체 팝업 런처 — Start Menu\\Programs 의 .lnk 를 직접 읽는다",
-  "main": ".vite/build/main.js",
+  "main": "./out/main/main.js",
   "private": true,
   "scripts": {
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "publish": "electron-forge publish",
+    "start": "node scripts/run-electron-vite.mjs dev",
+    "preview": "node scripts/run-electron-vite.mjs preview",
+    "build": "electron-vite build",
+    "build:native": "node scripts/build-native.mjs",
+    "pack": "npm run build:native && electron-vite build && electron-builder --dir",
+    "dist": "npm run build:native && electron-vite build && electron-builder",
     "icon": "node scripts/build-icon.mjs",
     "lint": "eslint --ext .ts,.tsx ."
+  },
+  "build": {
+    "appId": "com.blueming.menu",
+    "productName": "Blueming Menu",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "native/hotkey/target/release/blueming-hotkey.exe",
+        "to": "blueming-hotkey.exe"
+      },
+      {
+        "from": "assets/icons/icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "native/shell-ext/dist",
+        "to": "shell-ext"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icons/icon.ico",
+      "executableName": "BluemingMenu"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "shortcutName": "Blueming Menu"
+    }
   },
   "keywords": [],
   "author": {
@@ -24,6 +65,7 @@
     "@electron-forge/maker-deb": "^7.11.2",
     "@electron-forge/maker-rpm": "^7.11.2",
     "@electron-forge/maker-squirrel": "^7.11.2",
+    "@electron-forge/maker-wix": "^7.11.2",
     "@electron-forge/maker-zip": "^7.11.2",
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.2",
     "@electron-forge/plugin-fuses": "^7.11.2",
@@ -33,6 +75,8 @@
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "electron": "43.4.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^2.3.0",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
     "png-to-ico": "^3.0.2",

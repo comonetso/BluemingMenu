@@ -5,8 +5,40 @@
   "contextMenu": {
     "add": "Blueming Menu 에 등록"
   },
+  "floating": {
+    "hide": "숨김"
+  },
+  "folder": {
+    "defaultName": "새 폴더",
+    "dissolve": "폴더 해체"
+  },
+  "grid": {
+    "empty": "등록된 항목이 없습니다"
+  },
+  "hotkey": {
+    "hint": "원하는 키를 누르세요",
+    "none": "사용 안 함",
+    "modifierOnly": "Win · Ctrl · Alt · Shift 조합만 됩니다",
+    "clear": "사용 안 함",
+    "save": "저장",
+    "cancel": "취소"
+  },
+  "item": {
+    "runAsAdmin": "관리자 권한으로 실행",
+    "openLocation": "파일 위치 열기",
+    "remove": "메뉴에서 삭제"
+  },
   "tray": {
     "open": "열기",
-    "quit": "종료"
+    "quit": "종료",
+    "floatingShow": "플로팅 보이기",
+    "floatingHide": "플로팅 숨김",
+    "language": "언어변경",
+    "langKo": "한국어",
+    "langEn": "English",
+    "layout": "구성변경",
+    "layoutCols": "가로",
+    "layoutRows": "세로",
+    "hotkey": "단축키 설정"
   }
 }

@@ -1,0 +1,33 @@
+[package]
+name = "blueming-hotkey"
+version = "0.1.0"
+edition = "2021"
+description = "Blueming Menu 전역 단축키 감시 프로세스 (WH_KEYBOARD_LL)"
+publish = false
+
+[[bin]]
+name = "blueming-hotkey"
+path = "src/main.rs"
+
+[dependencies.windows]
+# 셸 확장과 같은 버전으로 고정한다. 마이너 버전마다 API 시그니처가 바뀐다.
+version = "=0.58.0"
+features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_LibraryLoader",
+    "Win32_Storage_FileSystem",
+    # CreateFileW / WriteFile 이 이 feature 뒤에 있다 (overlapped I/O 와 같은 모듈이라).
+    "Win32_System_IO",
+    # GetCurrentThreadId
+    "Win32_System_Threading",
+    # CreateFileW 는 SECURITY_ATTRIBUTES 를 인자로 받아 이 feature 를 함께 요구한다.
+    "Win32_Security",
+]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

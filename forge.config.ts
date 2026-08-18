@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
@@ -16,8 +18,66 @@ const config: ForgeConfig = {
     // 확장자를 붙이지 않는다 — packager 가 플랫폼별로 .ico/.icns 를 알아서 붙인다.
     // 원본은 assets/icons/d-rising.svg 이고 `npm run icon` 으로 생성한다.
     icon: 'assets/icons/icon',
+
+    /**
+     * asar 밖에 그대로 복사할 것들. 설치 후 `process.resourcesPath` 아래에 놓인다.
+     *
+     * ⚠️ **전역 단축키 훅 프로세스는 반드시 여기 있어야 한다.** asar 안에 들어가면
+     *    `spawn` 으로 실행할 수 없다(실행 파일은 실제 파일시스템에 있어야 한다).
+     *    빠뜨리면 설치본에서 단축키만 조용히 동작하지 않는다 — `src/hotkey.ts` 가
+     *    경로를 못 찾고 경고만 남기기 때문에 눈치채기 어렵다.
+     *
+     * ⚠️ 이 파일은 `npm run make` 전에 미리 빌드돼 있어야 한다:
+     *      cd native/hotkey
+     *      cargo +stable-x86_64-pc-windows-gnu build --release
+     */
+    extraResource: [
+      'native/hotkey/target/release/blueming-hotkey.exe',
+
+      /**
+       * ⚠️ 트레이 아이콘도 **asar 밖**에 있어야 한다.
+       *    `nativeImage.createFromPath()` 는 네이티브 코드로 파일을 읽어서 asar 가상 경로를
+       *    이해하지 못한다. asar 안에 두면 패키징 후 트레이 아이콘이 **빈 사각형**으로 나온다
+       *    (2026-08-18 실측 — 개발 중에는 asar 가 없어 멀쩡해서 눈치채기 어렵다).
+       */
+      'assets/icons/icon.ico',
+    ],
   },
   rebuildConfig: {},
+
+  hooks: {
+    /**
+     * 최종 배포물을 `dist/` 한 곳에 모은다.
+     *
+     * Forge 기본 출력은 `out/make/squirrel.windows/x64/...` 로 깊고, 파일명에 공백이 들어간다
+     * (`Blueming Menu-0.1.0 Setup.exe`). 이 프로젝트는 경로 공백 때문에 이미 여러 번 데였고
+     * `executableName` 도 공백 없이 `BluemingMenu` 로 고정해 두었다 — 배포물도 같은 규칙을 따른다.
+     *
+     * `out/` 은 중간 산출물이라 그대로 둔다. 사람이 가져다 쓰는 것은 `dist/` 뿐이다.
+     */
+    async postMake(_forgeConfig, makeResults) {
+      const distDir = path.join(__dirname, 'dist');
+      await fs.rm(distDir, { recursive: true, force: true });
+      await fs.mkdir(distDir, { recursive: true });
+
+      for (const result of makeResults) {
+        for (const artifact of result.artifacts) {
+          // "Blueming Menu-0.1.0 Setup.exe" → "BluemingMenu-0.1.0-Setup.exe"
+          // 앱 이름은 붙여 쓰고(executableName 과 같은 규칙), 나머지 공백만 하이픈으로 바꾼다.
+          const cleaned = path
+            .basename(artifact)
+            .replace(/Blueming Menu/g, 'BluemingMenu')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-');
+          const dest = path.join(distDir, cleaned);
+          await fs.copyFile(artifact, dest);
+          console.log(`[dist] ${cleaned}`);
+        }
+      }
+
+      return makeResults;
+    },
+  },
   makers: [
     new MakerSquirrel({ setupIcon: 'assets/icons/icon.ico' }),
     new MakerZIP({}, ['darwin']),

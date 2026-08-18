@@ -1,13 +1,67 @@
 <!doctype html>
-<html>
+<!--
+  lang 속성을 하드코딩하지 않는다.
+  앱 언어(ko/en)의 단일 진실원은 메인 프로세스이고, 사용자가 런타임에 바꾸면 IPC 로 통보된다
+  (DIRECTION.md 3.6). 빌드 시점에 값을 박아 두면 언어를 바꿔도 문서 언어가 따라가지 못한다.
+  → 여기서는 빈 값("언어 미정")으로 두고, 렌더러가 i18n init 직후와 언어 변경 통보를 받을 때마다
+     document.documentElement.lang 을 세팅한다.
+-->
+<html lang="">
   <head>
+    <!-- 한글 라벨(ko.json)이 들어오므로 UTF-8 은 필수다. -->
     <meta charset="UTF-8" />
-    <title>Hello World!</title>
 
+    <!-- 고유명사라 번역하지 않는다 (DIRECTION.md 3.6). -->
+    <title>Blueming Menu</title>
+
+    <!--
+      Content-Security-Policy
+      이 문서 하나를 패널 창과 플로팅 아이콘 창이 공유하고, 개발(Vite dev server, http://localhost:*)
+      과 배포(loadFile, file://) 두 환경에서 같은 정책이 적용된다. 'self' 는 런타임 문서 출처를 따르므로
+      양쪽 모두에서 동작한다. 지시어별 근거:
+
+      default-src 'self'
+        기본을 자기 출처로 잠근다. 외부 origin(https:, http: 원격) 을 일절 허용하지 않는다.
+        이 앱은 네트워크에서 가져오는 리소스가 없다.
+      script-src 'self'
+        번들 스크립트와 Vite dev 의 /@vite/client 는 둘 다 문서와 같은 출처의 외부 스크립트다.
+        이 스택(바닐라 TS + Vite 5)의 dev 서버는 HTML 에 인라인 스크립트를 주입하지 않으므로
+        'unsafe-inline' / 'unsafe-eval' 없이 HMR 이 돈다.
+        ⚠️ 인라인 preamble 을 주입하는 플러그인(React Fast Refresh 등)을 나중에 붙이면 이 줄을 다시 봐야 한다.
+      style-src 'self' 'unsafe-inline'
+        'unsafe-inline' 은 개발 편의를 위한 것이다. renderer.ts 가 index.css 를 import 하는데,
+        Vite dev 는 이걸 <style> 태그로 주입하고 CSS HMR 도 <style> 을 갈아끼운다.
+        빼면 npm start 에서 스타일이 통째로 죽는다(배포 빌드는 .css 링크라 'self' 로 충분).
+        스크립트 실행 권한과 무관해 XSS 위험이 script 쪽보다 낮다고 보고 허용한다.
+      img-src 'self' data:
+        앱 아이콘이 nativeImage.toDataURL() 로 만들어진 data: URL 로 IPC 를 타고 온다.
+        data: 를 빼면 모든 아이콘이 안 보인다.
+      connect-src 'self' ws://localhost:* ws://127.0.0.1:*
+        Vite HMR 웹소켓용. 개발 중에만 쓰이며 루프백으로만 한정했다(포트는 Forge 가 정하므로 고정하지 않는다).
+      object-src 'none' / frame-src 'none' / base-uri 'none' / form-action 'none'
+        플러그인·iframe·<base> 하이재킹·폼 전송은 이 앱에 쓸 일이 없어 전부 막는다.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data:;
+        connect-src 'self' ws://localhost:* ws://127.0.0.1:*;
+        object-src 'none';
+        frame-src 'none';
+        base-uri 'none';
+        form-action 'none'
+      "
+    />
   </head>
   <body>
-    <h1>💖 Hello World!</h1>
-    <p>Welcome to your Electron application.</p>
+    <!--
+      DOM 은 전부 renderer.ts 가 만든다. 패널/플로팅 아이콘 분기는 location.hash 로 한다.
+      레이아웃 스타일은 src/index.css 담당이며 이 파일에 인라인 <style> 을 두지 않는다.
+    -->
+    <div id="root"></div>
     <script type="module" src="/src/renderer.ts"></script>
   </body>
 </html>
