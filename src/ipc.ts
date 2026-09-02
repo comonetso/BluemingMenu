@@ -10,17 +10,28 @@ export const CH = {
   GRID_GET: 'bm:grid:get',
   /** 재배치·폴더 변경 결과를 저장한다 (items: GridEntry[]) */
   GRID_SAVE: 'bm:grid:save',
+
+  /**
+   * 탐색기에서 끌어다 놓은 파일을 등록한다 (paths: string[]).
+   *
+   * ⚠️ 셸 확장의 `TOGGLE` 과 다르다. 저쪽은 있으면 빼고 없으면 넣는 **토글**이지만,
+   *    끌어다 놓기는 언제나 **추가**다. 이미 있는 항목을 다시 떨궜다고 지워지면 안 된다.
+   *
+   * 등록 결과는 `EV.GRID_UPDATE` 로 되돌아온다. 반환값은 실제로 새로 넣은 개수다.
+   */
+  GRID_ADD_FILES: 'bm:grid:addFiles',
   /** 항목 실행 (id: string). 실행 후 패널은 닫힌다 */
   APP_LAUNCH: 'bm:app:launch',
   /** 패널 닫기 요청 (Esc 등) */
   PANEL_CLOSE: 'bm:panel:close',
 
   /**
-   * 그리드 항목 우클릭 → 네이티브 컨텍스트 메뉴를 띄운다 (id: string).
+   * 그리드 항목 우클릭 → 네이티브 컨텍스트 메뉴를 띄운다 (ids: string | string[]).
    *
    * 메뉴 구성은 메인이 항목 종류를 보고 정한다.
    *   앱   → 관리자 권한으로 실행 / 파일 위치 열기 / 메뉴에서 삭제
    *   폴더 → 폴더 해체 / 메뉴에서 삭제
+   *   여러 개(Ctrl+클릭 다중 선택, 2개 이상) → 선택한 N개 삭제 **하나뿐**
    *
    * 선택 결과로 데이터가 바뀌면 메인이 저장하고 `EV.GRID_UPDATE` 를 브로드캐스트한다.
    * 렌더러는 응답을 기다려 무언가 할 필요가 없다.

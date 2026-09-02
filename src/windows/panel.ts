@@ -43,6 +43,27 @@ const BLUR_CLOSE_ENABLED = !IS_DEV || process.env.BM_NO_BLUR_CLOSE !== '1';
  */
 let blurSuspended = false;
 
+/**
+ * 마우스 왼쪽 버튼이 지금 눌려 있는가. `native/hotkey` 프로세스가 파이프로 알려준다.
+ *
+ * ### 왜 필요한가 — 끌어다 놓기와 blur 닫기의 충돌 (2026-09-02)
+ * 탐색기에서 바로가기를 끌어와 등록하려면 먼저 탐색기의 파일을 **눌러야** 하는데,
+ * 그 순간 패널이 포커스를 잃고 blur 로 닫혀 버린다. 끌고 왔을 때 놓을 자리가 이미 없다.
+ *
+ * 그렇다고 blur 닫기를 끄면 패널이 영영 안 닫힌다 (사용자 지적). 원하는 것은
+ * **끌고 있는 동안만** 살아 있는 것이다. 그 판정에 이 값이 쓰인다 —
+ * "버튼이 눌린 채 포커스를 잃었다" 면 클릭이 아니라 드래그 시작이다.
+ *
+ * Electron 에는 버튼 상태를 물어볼 API 가 없다. 저수준 마우스 훅은 `native/hotkey` 가 맡는다.
+ */
+let leftButtonDown = false;
+
+/**
+ * 버튼이 눌린 채 blur 가 와서 **닫기를 미뤄 둔** 상태.
+ * 버튼을 떼는 순간 커서 위치로 판정한다 — 패널 위면 놓은 것이니 유지, 밖이면 그때 닫는다.
+ */
+let blurDeferred = false;
+
 /** 팝업 메뉴를 띄우기 직전에 부른다 */
 export function suspendBlurClose(): void {
   blurSuspended = true;
@@ -96,6 +117,42 @@ function cursorInIgnoreRegion(): boolean {
     }
   }
   return false;
+}
+
+/** 지금 커서가 패널 창 위에 있는가 */
+function cursorOverPanel(win: BrowserWindow): boolean {
+  const p = screen.getCursorScreenPoint();
+  const r = win.getBounds();
+  return p.x >= r.x && p.x < r.x + r.width && p.y >= r.y && p.y < r.y + r.height;
+}
+
+/**
+ * 마우스 왼쪽 버튼 상태가 바뀌었다. 파이프 수신부(`main.ts`)가 부른다.
+ *
+ * 뗀 순간에 미뤄 둔 blur 가 있으면 여기서 판정한다.
+ *   - 커서가 패널 위 → 끌어다 놓은 것. 패널을 유지하고 **포커스를 되찾는다.**
+ *     ⚠️ 포커스를 되찾지 않으면 이미 blur 된 상태라 다음에 밖을 클릭해도 blur 가 다시 오지
+ *        않아 **영영 안 닫힌다.** 이 한 줄이 빠지면 "안 닫힌다" 가 그대로 재현된다.
+ *   - 커서가 패널 밖 → 드래그가 다른 곳에서 끝났다. 원래 blur 가 하려던 대로 닫는다.
+ */
+export function setMouseButtonDown(down: boolean): void {
+  leftButtonDown = down;
+  if (down) return;
+
+  if (!blurDeferred) return;
+  blurDeferred = false;
+
+  const win = getPanel();
+  if (!win || !panelOpen) return;
+
+  if (cursorOverPanel(win)) {
+    console.log('[panel] 보류한 blur 해제 — 패널 위에서 버튼을 뗌 (드롭). 유지하고 포커스 회복');
+    win.focus();
+    return;
+  }
+
+  console.log('[panel] 보류한 blur 실행 — 패널 밖에서 버튼을 뗌. 닫는다');
+  hidePanel();
 }
 
 /** 작업표시줄이 붙어 있는 화면 변 */
@@ -265,6 +322,20 @@ export function createPanel(): BrowserWindow {
       console.log('[panel] blur 무시 — 커서가 토글 버튼 위 (토글이 닫는다)');
       return;
     }
+
+    /*
+     * 마우스 버튼이 눌린 채 포커스를 잃었다 → 클릭이 아니라 **드래그 시작**일 수 있다.
+     * 지금 닫지 않고 버튼을 뗄 때 판정한다 (`setMouseButtonDown`).
+     *
+     * ⚠️ 이 판정은 훅 프로세스의 DOWN 신호가 blur 보다 **먼저** 도착한다는 데 기댄다.
+     *    저수준 훅은 시스템이 클릭을 처리하기 전에 불리고, blur 는 그 처리 결과(포커스 이동)가
+     *    Chromium 을 거쳐 온 것이라 순서상 앞선다. 실측으로 뒤집히면 이 로그에서 드러난다.
+     */
+    if (leftButtonDown) {
+      blurDeferred = true;
+      console.log('[panel] blur 보류 — 마우스 버튼 눌림 (드래그 가능성)');
+      return;
+    }
     hidePanel();
   });
 
@@ -335,6 +406,7 @@ export function showPanel(): void {
   if (!win.isVisible()) win.show();
   win.focus();
 
+  blurDeferred = false;
   panelOpen = true;
 }
 
@@ -360,6 +432,7 @@ export function hidePanel(): void {
   // (창이 hide 되지 않으므로 `visibilitychange` 는 오지 않는다)
   win.webContents.send(EV.PANEL_HIDE);
 
+  blurDeferred = false;
   panelOpen = false;
 }
 

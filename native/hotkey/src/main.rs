@@ -6,9 +6,18 @@
 //! 그건 네이티브 코드여야 한다. Node 네이티브 모듈로 만들면 Electron 메인 스레드에서 돌아
 //! 훅 타임아웃 위험이 커지므로, **아무 일도 하지 않는 작은 프로세스**로 분리했다.
 //!
+//! # 마우스 왼쪽 버튼도 감시한다 (2026-09-02 추가)
+//! 탐색기에서 바로가기를 **끌어다 놓아** 등록하는 기능 때문이다. 패널은 포커스를 잃으면 닫히는데,
+//! 탐색기의 파일을 누르는 순간이 곧 포커스 상실이라 끌기 시작하자마자 패널이 사라진다.
+//! 앱이 "지금 마우스 버튼이 눌려 있는가" 를 알아야 그 포커스 상실을 드래그로 판정할 수 있다.
+//! Electron 에는 그걸 물어볼 API 가 없고, 저수준 마우스 훅(`WH_MOUSE_LL`)이 이미 여기
+//! 키보드 훅과 같은 방식으로 붙을 수 있어 이 프로세스가 맡는다.
+//!
+//! 보내는 것은 `MOUSE\tDOWN` / `MOUSE\tUP` 두 줄뿐이다. 좌표·다른 버튼은 보내지 않는다.
+//!
 //! # ⚠️ 절대 지킬 것 두 가지
 //!
-//! ### 1. 키 입력을 삼키지 않는다
+//! ### 1. 키 입력을 삼키지 않는다 — 마우스도 마찬가지다
 //! `CallNextHookEx` 를 **언제나** 호출한다. 삼키는 순간
 //!   - `Win+E` · `Win+R` 같은 조합이 전부 죽고
 //!   - down 만 막고 up 을 흘리면 수식키가 **눌린 상태로 고착**된다
@@ -38,8 +47,8 @@ use windows::Win32::System::Threading::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW,
-    UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WM_APP, WM_KEYDOWN,
-    WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_APP,
+    WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 /// 파이프 이름. **`src/pipe.ts` 의 `PIPE_PATH` 와 반드시 같아야 한다.**
@@ -47,6 +56,9 @@ const PIPE_NAME: PCWSTR = w!(r"\\.\pipe\blueming-menu");
 
 /// 훅 콜백이 메시지 루프에 "발동했다" 를 알릴 때 쓰는 메시지.
 const WM_HOTKEY_FIRED: u32 = WM_APP + 1;
+/// 마우스 왼쪽 버튼이 눌렸다 / 떼어졌다. 마우스 훅 콜백이 던지고 메시지 루프가 파이프로 보낸다.
+const WM_MOUSE_LDOWN: u32 = WM_APP + 2;
+const WM_MOUSE_LUP: u32 = WM_APP + 3;
 
 // ─────────────────────────────────────────────────────────────
 // 감시할 수식키
@@ -156,6 +168,31 @@ unsafe extern "system" fn keyboard_hook(code: i32, wparam: WPARAM, lparam: LPARA
     CallNextHookEx(None, code, wparam, lparam)
 }
 
+/// 저수준 마우스 훅. **왼쪽 버튼의 눌림·뗌만** 본다.
+///
+/// 이동(`WM_MOUSEMOVE`)은 초당 수백 번 들어오므로 여기서 아무것도 하지 않고 즉시 넘긴다.
+/// 콜백 안에서는 메시지 한 번 던지는 것 외에 아무 일도 하지 않는다 — 키보드 훅과 같은 이유다
+/// (`LowLevelHooksTimeout` 을 넘기면 훅이 조용히 풀린다).
+unsafe extern "system" fn mouse_hook(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    if code >= 0 {
+        let message = wparam.0 as u32;
+        let notice = match message {
+            WM_LBUTTONDOWN => Some(WM_MOUSE_LDOWN),
+            WM_LBUTTONUP => Some(WM_MOUSE_LUP),
+            _ => None,
+        };
+        if let Some(msg) = notice {
+            let tid = MAIN_THREAD.load(Ordering::Relaxed);
+            if tid != 0 {
+                let _ = PostThreadMessageW(tid, msg, WPARAM(0), LPARAM(0));
+            }
+        }
+    }
+
+    // ⚠️ 언제나 다음 훅으로 넘긴다. 삼키면 시스템 전체의 클릭이 죽는다.
+    CallNextHookEx(None, code, wparam, lparam)
+}
+
 // ─────────────────────────────────────────────────────────────
 // 파이프
 // ─────────────────────────────────────────────────────────────
@@ -245,16 +282,26 @@ fn main() {
             Err(_) => return,
         };
 
+        // 마우스 훅은 실패해도 단축키는 살린다 — 끌어다 놓기가 안 될 뿐 앱의 핵심은 아니다.
+        let mouse_hook_handle: Option<HHOOK> =
+            SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_hook), module, 0).ok();
+
         // 훅은 메시지 루프가 돌아야 콜백이 불린다.
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
-            if msg.message == WM_HOTKEY_FIRED {
-                notify_app("HOTKEY\tTOGGLE");
-                continue;
+            match msg.message {
+                WM_HOTKEY_FIRED => notify_app("HOTKEY\tTOGGLE"),
+                WM_MOUSE_LDOWN => notify_app("MOUSE\tDOWN"),
+                WM_MOUSE_LUP => notify_app("MOUSE\tUP"),
+                _ => {
+                    DispatchMessageW(&msg);
+                }
             }
-            DispatchMessageW(&msg);
         }
 
+        if let Some(h) = mouse_hook_handle {
+            let _ = UnhookWindowsHookEx(h);
+        }
         let _ = UnhookWindowsHookEx(hook);
     }
 }

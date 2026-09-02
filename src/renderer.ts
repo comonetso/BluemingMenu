@@ -10,8 +10,9 @@
 
 import './index.css';
 import { initI18n, changeLocale, type Locale } from './i18n';
-import { renderGrid, getCurrentItems, closeFolder } from './ui/grid';
+import { renderGrid, getCurrentItems, closeFolder, clearSelection } from './ui/grid';
 import { initDnd } from './ui/dnd';
+import { initFileDrop } from './ui/drop';
 import { mountFloating } from './ui/floating';
 import { mountHotkeyDialog } from './ui/hotkey';
 import type { GridEntry, GridPayload } from './types';
@@ -174,11 +175,31 @@ async function bootPanel(): Promise<void> {
     });
   });
 
+  /*
+   * 탐색기에서 끌어다 놓기로 등록하는 경로를 연다.
+   *
+   * `paint()` 안이 아니라 여기서 한 번만 부른다 — 리스너를 `document` 에 걸기 때문에
+   * 다시 그릴 때마다 부를 필요가 없다(중복 등록은 drop.ts 가 자체로 막지만, 여기 두는 편이
+   * "한 번만 한다" 는 의도가 드러난다).
+   */
+  initFileDrop(root as HTMLElement);
+
   window.bm.onPanelShow(() => playOpenAnimation());
 
   // 감춰질 때 미리 시작 상태를 씌워 둔다. 그래야 다음에 열릴 때 완성된 패널이
   // 한 프레임 보였다가 애니메이션이 시작되는 일이 없다.
-  window.bm.onPanelHide(() => armOpenAnimation());
+  window.bm.onPanelHide(() => {
+    /*
+     * ⚠️ 열려 있던 폴더를 **반드시 함께 닫는다.**
+     * 패널 창은 파괴되지도 hide 되지도 않고 투명해질 뿐이라(`windows/panel.ts`), 그냥 두면
+     * 폴더 오버레이가 DOM 에 그대로 살아남는다. 다음에 패널을 열면 그리드 대신 지난번에
+     * 열어 둔 폴더가 덮인 채로 뜬다. (사용자 보고 2026-09-02)
+     */
+    // Ctrl+클릭으로 골라 둔 것도 함께 푼다. 다음에 열었을 때 지난 선택이 남아 있으면 안 된다.
+    clearSelection();
+    closeFolder();
+    armOpenAnimation();
+  });
 
   /*
    * ⚠️ `visibilitychange` 를 쓰지 않는다.

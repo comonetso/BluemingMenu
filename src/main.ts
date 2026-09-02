@@ -34,6 +34,7 @@ import {
   suspendBlurClose,
   resumeBlurClose,
   addBlurIgnoreRegion,
+  setMouseButtonDown,
 } from './windows/panel';
 import {
   createFloating,
@@ -372,21 +373,56 @@ function runAsAdmin(entry: AppEntry): void {
  */
 function removeEntry(id: string): void {
   const items = getConfig().items;
-  const found = locateEntry(items, id);
-  if (!found) {
+  const removed = spliceOut(items, id);
+  if (!removed) {
     console.warn(`[item] 삭제할 항목이 이미 없다: ${id}`);
     return;
   }
+
+  setItems(items);
+  pushGrid();
+  console.log(`[item] 메뉴에서 삭제 — ${removed.name}`);
+}
+
+/** `items` 에서 id 하나를 뺀다. 저장·재렌더는 하지 않는다. 뺐으면 그 항목을 돌려준다 */
+function spliceOut(items: GridEntry[], id: string): GridEntry | null {
+  const found = locateEntry(items, id);
+  if (!found) return null;
 
   if (found.parent) {
     found.parent.children.splice(found.index, 1);
   } else {
     items.splice(found.index, 1);
   }
+  return found.entry;
+}
+
+/**
+ * 여러 개를 한 번에 삭제 (Ctrl+클릭 다중 선택. 사용자 지정 2026-09-02).
+ *
+ * ⚠️ 하나씩 **매번 다시 찾아** 뺀다. 앞 항목을 빼면 뒤 항목의 인덱스가 밀리므로
+ *    미리 구해 둔 인덱스는 쓸 수 없다. 폴더 자체와 그 안의 자식이 함께 들어와도
+ *    (폴더를 먼저 빼면 자식은 이미 없다 → 못 찾음 → 건너뜀) 이 방식이면 안전하다.
+ *
+ * 저장과 재렌더는 **마지막에 한 번**만 한다. 항목마다 하면 그 수만큼 디스크에 쓴다.
+ */
+function removeEntries(ids: string[]): void {
+  const items = getConfig().items;
+  const names: string[] = [];
+
+  for (const id of ids) {
+    const removed = spliceOut(items, id);
+    if (removed) names.push(removed.name);
+  }
+
+  if (names.length === 0) {
+    console.warn(`[item] 삭제할 항목이 하나도 없다 (${ids.length}개 요청)`);
+    return;
+  }
 
   setItems(items);
   pushGrid();
-  console.log(`[item] 메뉴에서 삭제 — ${found.entry.name}`);
+  console.log(`[item] 다중 삭제 — ${names.length}개 (${names.join(', ')})`);
 }
 
 /**
@@ -463,6 +499,21 @@ function itemMenuTemplate(entry: GridEntry): Electron.MenuItemConstructorOptions
   ];
 }
 
+/**
+ * 다중 선택 메뉴 — **삭제 하나뿐이다.**
+ *
+ * 관리자 실행·파일 위치 열기는 항목 하나에 대한 동작이라 여러 개에는 뜻이 없다.
+ * 폴더 해체도 마찬가지다. 탐색기가 여러 개를 골랐을 때 항목별 동작을 감추는 것과 같다.
+ */
+function multiMenuTemplate(ids: string[]): Electron.MenuItemConstructorOptions[] {
+  return [
+    {
+      label: t('item.removeSelected', { count: ids.length }),
+      click: () => removeEntries(ids),
+    },
+  ];
+}
+
 // ─────────────────────────────────────────────────────────────
 // IPC
 // ─────────────────────────────────────────────────────────────
@@ -472,6 +523,84 @@ function registerIpc(): void {
 
   ipcMain.handle(CH.GRID_SAVE, (_e, items: GridEntry[]) => {
     setItems(items);
+  });
+
+  /**
+   * 탐색기에서 끌어다 놓은 파일을 등록한다. 새로 넣은 개수를 돌려준다.
+   *
+   * ⚠️ 토글이 **아니라 추가**다. 셸 확장의 TOGGLE 은 있으면 빼지만, 끌어다 놓기는 언제나 넣기다.
+   *    이미 있는 항목을 다시 떨궜다고 지워지면 사용자는 사라진 이유를 알 수 없다.
+   *
+   * ⚠️ 받는 것은 `.lnk` 뿐이다. 항목(`AppEntry`)이 원본 바로가기 경로를 반드시 갖는 구조이고,
+   *    셸 확장이 다루는 대상도 `.lnk` 하나다. 두 등록 경로의 규칙을 같게 둔다.
+   *    `.exe` 나 폴더까지 받을지는 **사용자 결정 사항**이라 여기서 정하지 않는다.
+   *
+   * ⚠️ 원본 `.lnk` 는 **읽기만 한다.** 이동·삭제·수정하지 않는다.
+   */
+  ipcMain.handle(CH.GRID_ADD_FILES, async (_e, paths: string[]) => {
+    if (!Array.isArray(paths)) return 0;
+
+    const items = getConfig().items;
+    const added: AppEntry[] = [];
+
+    for (const raw of paths) {
+      if (typeof raw !== 'string') continue;
+
+      const lnkPath = raw.trim();
+      if (lnkPath === '') continue;
+
+      if (!lnkPath.toLowerCase().endsWith('.lnk')) {
+        console.log(`[drop] .lnk 가 아니라 건너뜀 — ${lnkPath}`);
+        continue;
+      }
+
+      // Windows 경로는 대소문자를 구분하지 않는다. 비교는 항상 소문자로 맞춘다.
+      const key = lnkPath.toLowerCase();
+
+      if (locateByLnkPath(items, lnkPath)) {
+        console.log(`[drop] 이미 등록됨 — ${lnkPath}`);
+        continue;
+      }
+      // 한 번의 드롭 안에서의 중복도 막는다 (같은 파일이 두 번 넘어오는 경우)
+      if (added.some((e) => e.lnkPath.toLowerCase() === key)) continue;
+
+      const entry = await readShortcutEntry(lnkPath);
+      if (!entry) {
+        console.warn(`[drop] .lnk 를 읽지 못했다 — ${lnkPath}`);
+        continue;
+      }
+
+      /*
+       * ⚠️ 위 `readShortcutEntry()` 는 **await 다** (아이콘 추출에 PowerShell 을 띄운다).
+       *    그 사이 셸 확장이나 또 다른 드롭이 같은 파일을 넣었을 수 있어 넣기 직전에 다시 본다.
+       *    (같은 이유로 `toggleByLnkPath()` 도 재확인한다)
+       */
+      if (locateByLnkPath(items, lnkPath)) continue;
+
+      added.push(entry);
+    }
+
+    if (added.length === 0) return 0;
+
+    /*
+     * 새 항목은 **맨 뒤**에 붙인다 (사용자 지정 2026-09-02).
+     *
+     * 처음에는 맨 앞에 넣었다 — 항목이 많으면 뒤에 붙인 것이 화면 밖이라 "등록이 안 된다" 는
+     * 오해를 부른다는 이유였다(셸 확장 등록 `toggleByLnkPath` 가 지금도 그 규칙이다).
+     * 그러나 앞에 넣으면 **기존 배치가 통째로 한 칸씩 밀린다.** 끌어다 놓기는 사용자가 스스로
+     * 놓는 동작이라 등록된 사실을 이미 알고 있으므로, 밀리지 않는 쪽이 낫다는 것이 사용자 판단이다.
+     *
+     * ⚠️ 감수한 것 — 항목이 많으면 새로 넣은 것을 보려면 스크롤해야 한다.
+     *    등록 후 그 자리로 자동 스크롤할지는 정해진 바 없어 손대지 않았다.
+     *
+     * 여러 개를 한 번에 떨궜을 때 **떨어뜨린 순서가 유지되도록** 모아서 한 번에 붙인다.
+     */
+    items.push(...added);
+    setItems(items);
+    pushGrid();
+
+    console.log(`[drop] 등록 — ${added.length}개 (${added.map((e) => e.name).join(', ')})`);
+    return added.length;
   });
 
   ipcMain.handle(CH.APP_LAUNCH, async (_e, id: string) => {
@@ -494,21 +623,29 @@ function registerIpc(): void {
 
   // 그리드 항목 우클릭 → 네이티브 컨텍스트 메뉴.
   // 메뉴를 띄울 창은 패널이다. 결과로 데이터가 바뀌면 각 동작이 저장·브로드캐스트까지 마친다.
-  ipcMain.handle(CH.ITEM_MENU, (_e, id: string) => {
+  ipcMain.handle(CH.ITEM_MENU, (_e, ids: string | string[]) => {
     const win = getPanel();
     if (!win) return;
 
-    const found = locateEntry(getConfig().items, id);
-    if (!found) {
-      console.warn(`[itemMenu] 항목을 찾지 못했다: ${id}`);
-      return;
+    // 여러 개(Ctrl+클릭 다중 선택)면 다중 삭제 메뉴. 하나면 기존 항목 메뉴.
+    let template: Electron.MenuItemConstructorOptions[];
+    if (Array.isArray(ids) && ids.length >= 2) {
+      template = multiMenuTemplate(ids);
+    } else {
+      const id = Array.isArray(ids) ? (ids[0] ?? '') : ids;
+      const found = locateEntry(getConfig().items, id);
+      if (!found) {
+        console.warn(`[itemMenu] 항목을 찾지 못했다: ${id}`);
+        return;
+      }
+      template = itemMenuTemplate(found.entry);
     }
 
     // ⚠️ 팝업이 뜨는 순간 패널이 blur 를 받는다. 막지 않으면 패널이 숨으면서 메뉴까지 닫혀
     //    우클릭이 통째로 동작하지 않는다. blur 닫기는 이제 개발 모드에서도 켜져 있으므로
     //    이 증상은 `npm start` 에서도 그대로 재현된다.
     suspendBlurClose();
-    Menu.buildFromTemplate(itemMenuTemplate(found.entry)).popup({
+    Menu.buildFromTemplate(template).popup({
       window: win,
       callback: () => resumeBlurClose(),
     });
@@ -692,6 +829,8 @@ app.on('ready', async () => {
         togglePanel();
       }
     },
+    // 마우스 왼쪽 버튼 상태. 패널의 "드래그 중 blur 보류" 판정에 쓰인다.
+    mouse: (down) => setMouseButtonDown(down),
   });
 
   // 전역 단축키 감시 프로세스. 앱이 살아 있는 동안만 돈다.

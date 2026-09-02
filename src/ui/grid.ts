@@ -64,6 +64,22 @@ let openFolderId: string | null = null;
 /** 전역 리스너를 한 번만 걸기 위한 플래그 */
 let globalListenersBound = false;
 
+/* ------------------------------------------------------------------ 선택 */
+
+/** 선택 표시 클래스. index.css 와의 계약이다 */
+const SELECTED_CLASS = 'bm-selected';
+
+/**
+ * Ctrl+클릭으로 골라 둔 항목 id 들 (사용자 지정 2026-09-02).
+ *
+ * 메인 그리드와 폴더 안 항목이 섞이지 않는다 — 폴더를 열고 닫을 때 선택을 풀기 때문이다.
+ * 삭제는 id 로 하므로(`main.ts` `removeEntries`) 어느 배열의 것이든 처리에는 차이가 없다.
+ *
+ * 다시 그리면(`renderGrid`) DOM 이 통째로 새로 만들어지므로 그때도 비운다.
+ * 선택을 재렌더 너머로 살리려면 렌더 뒤에 클래스를 다시 붙여야 하는데, 지금 그 요구는 없다.
+ */
+const selected = new Set<string>();
+
 /* ------------------------------------------------------------------ 유틸 */
 
 /**
@@ -130,8 +146,42 @@ function bindContextMenu(el: HTMLElement, id: string): void {
   el.addEventListener('contextmenu', (e) => {
     // 브라우저 기본 메뉴를 막는다. 네이티브 메뉴는 메인이 띄운다.
     e.preventDefault();
+
+    /*
+     * 선택된 항목 위에서의 우클릭 → 선택 **전체**를 넘긴다 (다중 삭제 메뉴).
+     * 선택 밖의 항목 위에서의 우클릭 → 탐색기처럼 선택을 풀고 그 항목만 다룬다.
+     * 선택이 하나뿐이면 단일 메뉴가 더 쓸모 있으므로(관리자 실행·파일 위치) 그쪽으로 보낸다.
+     */
+    if (selected.has(id) && selected.size >= 2) {
+      void bm().itemMenu(Array.from(selected));
+      return;
+    }
+    clearSelection();
     void bm().itemMenu(id);
   });
+}
+
+/** 선택을 켜거나 끈다. 클래스와 Set 을 함께 맞춘다 */
+function toggleSelect(cell: HTMLElement, id: string): void {
+  if (selected.has(id)) {
+    selected.delete(id);
+    cell.classList.remove(SELECTED_CLASS);
+  } else {
+    selected.add(id);
+    cell.classList.add(SELECTED_CLASS);
+  }
+}
+
+/**
+ * 선택을 전부 푼다. 패널이 닫힐 때(renderer.ts)·폴더를 열고 닫을 때·Esc 에서 불린다.
+ * 선택이 없으면 DOM 을 뒤지지 않고 바로 돌아온다.
+ */
+export function clearSelection(): void {
+  if (selected.size === 0) return;
+  selected.clear();
+  rootEl
+    ?.querySelectorAll(`.${SELECTED_CLASS}`)
+    .forEach((el) => el.classList.remove(SELECTED_CLASS));
 }
 
 /** 셀 공통 뼈대 */
@@ -157,7 +207,13 @@ function createAppCell(entry: AppEntry, index: number, scope: CellScope): HTMLBu
     createLabel(displayName(entry)),
   );
   // 실행 후 패널을 닫는 것은 메인이 한다.
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', (e) => {
+    // Ctrl+클릭은 실행이 아니라 **선택 토글**이다 (사용자 지정 2026-09-02).
+    if (e.ctrlKey) {
+      toggleSelect(btn, entry.id);
+      return;
+    }
+    clearSelection();
     void bm().launch(entry.id);
   });
   return btn;
@@ -173,7 +229,15 @@ function createFolderCell(entry: FolderEntry, index: number, scope: CellScope): 
   }
 
   btn.append(preview, createLabel(displayName(entry)));
-  btn.addEventListener('click', () => openFolder(entry.id));
+  btn.addEventListener('click', (e) => {
+    // 폴더도 Ctrl+클릭이면 열지 않고 선택한다 — 폴더째 삭제 대상이 될 수 있다.
+    if (e.ctrlKey) {
+      toggleSelect(btn, entry.id);
+      return;
+    }
+    clearSelection();
+    openFolder(entry.id);
+  });
   return btn;
 }
 
@@ -253,6 +317,8 @@ export function renderGrid(root: HTMLElement, payload: GridPayload): void {
   currentRows = Math.max(1, payload.rows);
 
   removeOverlay();
+  // DOM 이 통째로 새로 만들어진다. 옛 DOM 의 클래스는 지울 필요가 없고 Set 만 비운다.
+  selected.clear();
 
   // 셀 치수는 CSS 변수로 넘긴다 (config.ts 실측값이 단일 진실원이다)
   root.style.setProperty('--cell-w', `${CELL_WIDTH}px`);
@@ -340,6 +406,8 @@ export function openFolder(id: string): void {
   if (!folder) return;
 
   removeOverlay();
+  // 폴더를 열면 메인 그리드의 선택은 뜻을 잃는다 — 폴더 안팎이 섞인 선택을 만들지 않는다.
+  clearSelection();
 
   const overlay = document.createElement('div');
   overlay.className = 'bm-folder-overlay';
@@ -394,6 +462,8 @@ function removeOverlay(): void {
 /** 폴더를 닫는다. 열려 있지 않으면 아무것도 하지 않는다 */
 export function closeFolder(): void {
   if (!overlayEl) return;
+  // 폴더 안에서 골라 둔 것이 있으면 푼다. 오버레이를 걷기 전에 해야 클래스를 지울 수 있다.
+  clearSelection();
   removeOverlay();
   emitRendered();
 }
@@ -410,7 +480,18 @@ function bindGlobalListeners(): void {
   window.addEventListener(
     'keydown',
     (e) => {
-      if (e.key !== 'Escape' || !overlayEl) return;
+      if (e.key !== 'Escape') return;
+
+      // 선택이 있으면 Esc 는 **선택만** 푼다. 폴더도 패널도 닫지 않는다 (탐색기와 같다).
+      if (selected.size > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        clearSelection();
+        return;
+      }
+
+      if (!overlayEl) return;
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();

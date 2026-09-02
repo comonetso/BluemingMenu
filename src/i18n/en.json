@@ -26,7 +26,8 @@
   "item": {
     "runAsAdmin": "Run as administrator",
     "openLocation": "Open file location",
-    "remove": "Remove from menu"
+    "remove": "Remove from menu",
+    "removeSelected": "Remove {{count}} selected from menu"
   },
   "tray": {
     "open": "Open",

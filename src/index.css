@@ -373,6 +373,14 @@ body {
   outline-offset: -2px;
 }
 
+/* Ctrl+클릭으로 **골라 둔** 항목 (grid.ts 가 `bm-selected` 를 붙인다. 2026-09-02).
+   포커스 링과 같은 모양에 배경까지 주어, 링만으로는 약한 작은 셀에서도 구분된다. */
+.bm-cell.bm-selected {
+  background: var(--active-bg);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 /* 빈 칸 — 보이지는 않지만 드롭 대상이라 자리는 그대로 차지한다.
    호버·클릭 피드백은 위 두 규칙의 `:not(.bm-cell-empty)` 로 이미 꺼져 있다.
    (`.bm-cell` 없이 단독으로 붙는 경우에도 자리를 잃지 않게 치수를 다시 준다) */
@@ -672,6 +680,20 @@ body {
 
 .bm-insert-after::after {
   right: 0;
+}
+
+/* 탐색기에서 **파일을 끌고 들어왔을 때** — `#root` 에 `bm-drop-active` 가 붙는다 (drop.ts 계약).
+ *
+ * 패널 안쪽 테두리를 강조색으로 바꿔 "여기 놓으면 된다" 를 알린다.
+ * `.bm-panel` 의 box-shadow 를 덮어쓰되 **바깥 그림자는 유지한다** — 그림자가 빠지면
+ * 패널이 배경에서 떠 있는 느낌이 사라져 눈에 띄게 어색해진다.
+ *
+ * 셀 단위 강조는 하지 않는다. 떨어뜨린 위치와 무관하게 **언제나 맨 앞에** 등록되므로
+ * (main.ts 의 GRID_ADD_FILES) 특정 칸을 가리키면 거짓말이 된다. */
+.bm-drop-active .bm-panel {
+  box-shadow:
+    inset 0 0 0 2px var(--accent), /* 두께 임의값 */
+    var(--panel-shadow);
 }
 
 /* -----------------------------------------------------------------------------

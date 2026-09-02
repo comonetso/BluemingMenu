@@ -77,8 +77,47 @@ resolveLocale(app.getLocale())   // ko-* 로 시작할 때만 'ko', 그 외는 �
 
 읽어보지 않으면 반드시 밟는 것들이다.
 
-**경로에 공백이 3개 있다** — `Etc Project` · `Electron Project` · `Blueming Menu`.
-스크립트·빌드 설정·출력 경로에서 인용을 빠뜨리면 깨진다. (Forge + Vite 기동 자체는 검증 완료.)
+**프로젝트 폴더에는 이제 공백이 없다** (2026-08-27 변경).
+`Etc Project` · `Electron Project` · `Blueming Menu` → `EtcProject` · `ElectronProject` · `BluemingMenu`.
+다만 `productName` 과 설치·산출물 경로에는 공백이 남아 있으므로 인용은 계속 필요하다.
+
+**⚠️ 셸 확장(MSIX)을 개발 폴더 기준으로 등록해 두지 마라.** 등록에 박힌 경로가 사라지면
+탐색기 컨텍스트 메뉴 항목이 **조용히** 없어진다. 에러도 로그도 남지 않는다.
+
+실제 사고(2026-08-27 ~ 09-02): 위 폴더명 변경으로 등록 경로가 사라졌는데, 탐색기가 이미
+메모리에 올려 둔 DLL 을 계속 물고 있어 며칠간 멀쩡히 동작했다. 8/31 윈도우 업데이트 재부팅으로
+탐색기가 새로 뜨자 그제서야 메뉴가 사라졌고, 시점이 겹쳐 **업데이트가 원인으로 오인됐다.**
+
+- 등록은 **설치 폴더 밖, 사용자가 쓸 수 있는 곳**을 가리켜야 한다. 실측(2026-09-02)으로 확정된 위치는
+  `%LOCALAPPDATA%\BluemingMenu\shell-ext` 다 — 설치본의 `resources\shell-ext` 를 거기로 복사해 등록한다
+  - `Program Files` 에 설치됐으면 `resources\shell-ext` 를 **직접 등록할 수 없다.** 등록 과정이 그 폴더에
+    메타데이터 디렉터리를 만들려다 0x80070005(액세스 거부)로 실패한다
+  - 설치 폴더 안(`<설치루트>\shell-ext`)에 두면 **재설치 때 통째로 지워진다** (아래 항목)
+- `native/shell-ext/build-and-register.ps1` 은 **개발 폴더**를 등록한다. 개발 중에만 쓰고,
+  끝나면 위 위치로 다시 등록해 둔다
+- `scripts/setup-installed.ps1` 은 사용자 폴더(per-user) 설치를 전제로 짜여 있다. `Program Files` 설치에는
+  그대로 못 쓴다 (설정 이전 단계가 개발용 설정을 복사하므로 실사용 배치가 있을 때 돌리면 안 된다)
+- 증상 확인: `Get-AppxPackage BluemingMenu.ShellExt` 의 `InstallLocation` 이 **비어 있으면 깨진 것이다**
+- 재등록 후에는 탐색기를 재시작해야 반영된다 (`Stop-Process -Name explorer -Force`)
+
+**⚠️ 설치 프로그램(NSIS)은 설치 폴더를 통째로 비운다.** 이전 버전을 지우면서 `RMDir /r` 로 밀기 때문에
+설치 폴더 안에 둔 **설정 파일과 셸 확장이 함께 사라진다.** 앱은 설정이 없으면 "최초 임포트" 를 다시 돌려
+시작 메뉴 전체를 가져오므로, 사용자 눈에는 **배치가 싹 날아간 것**으로 보인다.
+
+실제 사고(2026-09-02): per-user 설치본의 설정(25개·폴더 7개)이 재설치로 삭제됐고 184개가 다시 임포트됐다.
+설치 직전에 떠 둔 백업(`%LOCALAPPDATA%\BluemingMenu-backup\<날짜>\`)으로 복원했다.
+→ **재설치 전에 설정 파일을 반드시 설치 폴더 밖으로 백업한다.** 앱을 끈 뒤 복원하고 다시 켠다
+  (앱이 켜진 채 덮어쓰면 메모리의 설정이 다시 저장돼 백업을 덮는다).
+→ 설치 위치에 따라 설정 파일 위치가 다르다 (`src/store.ts` `configDir()`):
+  · 사용자 폴더 설치 → `<설치루트>\blueming-menu.config.json` (재설치에 **취약**)
+  · `Program Files` 설치 → `%APPDATA%\Blueming Menu\blueming-menu.config.json` (설치 폴더 밖이라 살아남는다)
+  2026-09-02 현재 설치본은 `C:\Program Files\BluemingMenu` 이고 설정은 `%APPDATA%` 쪽이다.
+
+**⚠️ 이 셸(VS Code 안 Claude Code)에는 `ELECTRON_RUN_AS_NODE=1` 이 걸려 있다.** 여기서 패키징된
+`BluemingMenu.exe` 를 그냥 실행하면 Electron 이 아니라 **Node 로 돌다가 조용히 끝난다** — 창도 로그도
+크래시 덤프도 없이 exit 0 이라 "앱이 안 뜬다" 로 보인다. `--enable-logging` 을 주면 `bad option` 이라는
+**Node 의** 오류가 찍히는 것이 단서다. 실행 전에 `unset ELECTRON_RUN_AS_NODE` 를 한다.
+(`npm start` 개발 실행은 electron-vite 가 알아서 처리하므로 영향이 없다)
 
 **`packagerConfig.executableName: 'BluemingMenu'` 를 지우지 마라.** `productName` 이 `Blueming Menu`
 (공백 포함)라 이 설정이 없으면 exe 파일명에 공백이 들어간다. 문서가 지정한 이름은 `BluemingMenu.exe` 다.

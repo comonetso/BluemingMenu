@@ -5,7 +5,7 @@
  * 채널 문자열은 반드시 `ipc.ts` 상수를 쓴다.
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { CH, EV } from './ipc';
 import type { GridEntry, GridPayload } from './types';
 import type { Locale } from './i18n';
@@ -14,6 +14,13 @@ const api = {
   grid: {
     get: (): Promise<GridPayload> => ipcRenderer.invoke(CH.GRID_GET),
     save: (items: GridEntry[]): Promise<void> => ipcRenderer.invoke(CH.GRID_SAVE, items),
+
+    /**
+     * 끌어다 놓은 파일 경로들을 등록한다. 새로 들어간 개수를 돌려준다.
+     * 경로는 아래 `pathForFile()` 로 얻는다.
+     */
+    addFiles: (paths: string[]): Promise<number> =>
+      ipcRenderer.invoke(CH.GRID_ADD_FILES, paths),
     onUpdate: (cb: (payload: GridPayload) => void) => {
       ipcRenderer.on(EV.GRID_UPDATE, (_e, payload: GridPayload) => cb(payload));
     },
@@ -23,8 +30,11 @@ const api = {
 
   closePanel: (): Promise<void> => ipcRenderer.invoke(CH.PANEL_CLOSE),
 
-  /** 항목 우클릭 → 네이티브 컨텍스트 메뉴. 결과는 GRID_UPDATE 로 되돌아온다 */
-  itemMenu: (id: string): Promise<void> => ipcRenderer.invoke(CH.ITEM_MENU, id),
+  /**
+   * 항목 우클릭 → 네이티브 컨텍스트 메뉴. 결과는 GRID_UPDATE 로 되돌아온다.
+   * id 를 **여러 개** 넘기면(Ctrl+클릭 다중 선택) 다중 삭제 메뉴가 뜬다.
+   */
+  itemMenu: (ids: string | string[]): Promise<void> => ipcRenderer.invoke(CH.ITEM_MENU, ids),
 
   /** 단축키 설정 창 전용 */
   hotkey: {
@@ -44,6 +54,23 @@ const api = {
 
   onLocaleChange: (cb: (locale: Locale) => void) => {
     ipcRenderer.on(EV.LOCALE_CHANGE, (_e, locale: Locale) => cb(locale));
+  },
+
+  /**
+   * 드롭된 `File` 의 실제 경로를 얻는다.
+   *
+   * ⚠️ Electron 32 부터 `File.path` 가 **제거됐다.** 이 앱은 43 이라 그 속성이 없다.
+   *    경로는 `webUtils.getPathForFile()` 로만 얻을 수 있고, 이 API 는 **preload 에서만**
+   *    쓸 수 있다. 렌더러에서 직접 부르면 undefined 가 나온다.
+   *
+   * 경로를 못 얻으면 빈 문자열을 돌려준다 (호출부가 걸러낸다).
+   */
+  pathForFile: (file: File): string => {
+    try {
+      return webUtils.getPathForFile(file);
+    } catch {
+      return '';
+    }
   },
 
   floating: {

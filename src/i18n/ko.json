@@ -26,7 +26,8 @@
   "item": {
     "runAsAdmin": "관리자 권한으로 실행",
     "openLocation": "파일 위치 열기",
-    "remove": "메뉴에서 삭제"
+    "remove": "메뉴에서 삭제",
+    "removeSelected": "선택한 {{count}}개 메뉴에서 삭제"
   },
   "tray": {
     "open": "열기",

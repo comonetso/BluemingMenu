@@ -14,6 +14,8 @@
  * ```
  *   QUERY\t<lnk 경로>   →  ADDED | ABSENT
  *   TOGGLE\t<lnk 경로>  →  ADDED | REMOVED | ERROR
+ *   HOTKEY\tTOGGLE      →  OK        (native/hotkey 가 보낸다)
+ *   MOUSE\tDOWN | UP     →  OK        (native/hotkey 가 보낸다. 왼쪽 버튼)
  * ```
  * ⚠️ 탐색기는 메뉴를 그리는 동안 `GetTitle()` 을 **동기로** 기다린다. 여기서 오래 끌면
  *    우클릭 메뉴 자체가 멈춘다. 응답은 파일 I/O 없이 메모리 조회만으로 끝나야 한다.
@@ -35,6 +37,11 @@ export interface PipeHandlers {
   toggle(lnkPath: string): Promise<'added' | 'removed' | 'error'>;
   /** 전역 단축키가 눌렸다 (`native/hotkey` 프로세스가 보낸다) */
   hotkey(action: string): void;
+  /**
+   * 마우스 왼쪽 버튼이 눌렸거나(`true`) 떼어졌다(`false`). `native/hotkey` 가 보낸다.
+   * 패널이 "포커스를 잃었을 때 그게 드래그 시작인지" 를 가리는 데 쓴다 (`windows/panel.ts`).
+   */
+  mouse(down: boolean): void;
 }
 
 let server: net.Server | null = null;
@@ -60,6 +67,11 @@ function handleLine(line: string, handlers: PipeHandlers): Promise<string> {
     // 단축키 프로세스가 보내는 신호. 두 번째 필드는 동작 이름이다 (지금은 TOGGLE 뿐).
     case 'HOTKEY':
       handlers.hotkey(lnkPath.toUpperCase());
+      return Promise.resolve('OK');
+
+    // 마우스 왼쪽 버튼 상태. 두 번째 필드는 DOWN 또는 UP 이다.
+    case 'MOUSE':
+      handlers.mouse(lnkPath.toUpperCase() === 'DOWN');
       return Promise.resolve('OK');
 
     default:
